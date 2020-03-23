@@ -3,9 +3,15 @@ import argparse
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.utils.data import Dataset, DataLoader
+import utils
+from models import *
 
 
 def main(opt: argparse.Namespace) -> None:
+    utils.set_gpu(opt.gpu)
+    device = torch.device("cuda")
+
     # Data
     train_dataset: Dataset = None
     train_dataloader: DataLoader = None

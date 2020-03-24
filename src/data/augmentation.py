@@ -73,6 +73,7 @@ def rotation_augmentation_interpolation_v2(grid: np.array, rotation=None) -> np.
     grid_coords = grid_coords[:, 0] * max_size[1] * max_size[2] + grid_coords[:, 1] * max_size[2] + grid_coords[:, 2]
     mult = torch.arange(num).view(-1, 1) * max_size[0] * max_size[1] * max_size[2]
     grid_coords = grid_coords + mult
+    grid_coords = grid_coords.long()
     scan_rots = scans.permute(0, 2, 3, 4, 1).contiguous().view(-1, 1)[grid_coords]
     scan_rots = scan_rots.view(scans.shape[0], scans.shape[2], scans.shape[3], scans.shape[4], scans.shape[1]).permute(
         0, 4, 1, 2, 3)

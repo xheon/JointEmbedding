@@ -144,7 +144,7 @@ def main(opt: argparse.Namespace) -> None:
 
                     # Go through entire validation set
                     for _, (scan_v, cad_v, negative_v) in tqdm(enumerate(val_dataloader),
-                                                               total=len(val_dataloader.dataset), leave=False):
+                                                               total=len(val_dataloader), leave=False):
                         losses = forward(scan_v, cad_v, negative_v, separation_model, completion_model, triplet_model,
                                          criterion_separation, criterion_completion, criterion_triplet, device)
 
@@ -157,11 +157,11 @@ def main(opt: argparse.Namespace) -> None:
                         val_losses["Total"].append(loss_total.item())
 
                     # Aggregate losses
-                    val_losses_summary = {k: torch.mean(torch.tensor(v)) for k, v in val_losses}
+                    val_losses_summary = {k: torch.mean(torch.tensor(v)) for k, v in val_losses.items()}
                     print(f"-Val [E{epoch:04d}, I{iteration_number:05d}]\tTotal: {val_losses_summary['Total']:05.3f}",
-                          f"tFG: {val_losses_summary['FG']:05.3f} \tBG: {val_losses_summary['BG']:05.3f}",
-                          f"\tCompletion:{val_losses_summary['Completion']:05.3f}",
-                          f"\tTriplet:{val_losses_summary['Triplet']:05.3f}")
+                          f"\tFG: {val_losses_summary['FG']:05.3f} \tBG: {val_losses_summary['BG']:05.3f}",
+                          f"\tCompletion: {val_losses_summary['Completion']:05.3f}",
+                          f"\tTriplet: {val_losses_summary['Triplet']:05.3f}")
 
             # Save checkpoint
             if iteration_number % opt.checkpoint_frequency == opt.checkpoint_frequency - 1:
@@ -172,7 +172,7 @@ def main(opt: argparse.Namespace) -> None:
                 torch.save(completion_model.state_dict(),
                            os.path.join(run_path, f"{checkpoint_name}_completion.pt"))
                 torch.save(triplet_model.state_dict(), os.path.join(run_path, f"{checkpoint_name}_triplet.pt"))
-                print(f"Saved model at {checkpoint_name}")
+                print(f"Saved model at {run_path}/{checkpoint_name}")
 
             iteration_number += 1
 
@@ -189,11 +189,11 @@ if __name__ == '__main__':
     parser.add_argument("--scan2cad_file", type=str)
     parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--triplet_margin", type=float, default=1e-2)
-    parser.add_argument("--rotation_augmentation", type=str, default="fixed", help="fixed, interpolation, none")
+    parser.add_argument("--rotation_augmentation", type=str, default="interpolation", help="fixed, interpolation, none")
     parser.add_argument("--flip_augmentation", type=bool, default=False)
     parser.add_argument("--jitter_augmentation", type=bool, default=False)
     parser.add_argument("--log_frequency", type=int, default=10)
-    parser.add_argument("--validate_frequency", type=int, default=500)
+    parser.add_argument("--validate_frequency", type=int, default=250)
     parser.add_argument("--checkpoint_frequency", type=int, default=1000)
     parser.add_argument("--output_root", type=str)
     args = parser.parse_args()

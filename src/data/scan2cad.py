@@ -1,10 +1,14 @@
 import json
+import math
 import os
+import random
 from collections import defaultdict
 import numpy as np
 
 from torch.utils.data import Dataset
 from typing import List, Tuple, Any
+
+import data
 
 
 class Scan2Cad(Dataset):
@@ -32,7 +36,7 @@ class Scan2Cad(Dataset):
         self.name = name
 
         if transformation is None:
-            transformation = utils.truncation_normalization_transform
+            transformation = data.truncation_normalization_transform
 
         self.transformation = transformation
 
@@ -44,7 +48,8 @@ class Scan2Cad(Dataset):
         if self.has_negatives:
             self.negatives = self.add_negatives(self.pairs)
 
-    def add_negatives(self, data: List[Tuple[str, str]]) -> List[str]:
+    @staticmethod
+    def add_negatives(data: List[Tuple[str, str]]) -> List[str]:
         per_category = defaultdict(list)
 
         for scan, _ in data:
@@ -121,10 +126,24 @@ class Scan2Cad(Dataset):
             negative_name = ""
 
         # Apply augmentations
-        # TODO
+        if self.rotation_augmentation == "interpolation":
+            rotations = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330]
+            degree = random.choice(rotations)
+            angle = degree * math.pi / 180
+            objects = {k: data.rotation_augmentation_interpolation_v2(o, angle) for k, o in objects.items()}
+
+        elif self.rotation_augmentation == "fixed":
+            objects = {k: data.rotation_augmentation_fixed(o) for k, o in objects.items()}
+
+        if self.flip_augmentation:
+            objects = {k: data.flip_augmentation(o) for k, o in objects.items()}
+
+        if self.jitter_augmentation:
+            objects = {k: data.jitter_augmentation(o) for k, o in objects.items()}
 
         objects = {k: np.ascontiguousarray(o) for k, o in objects.items()}
 
+        # Define final outputs
         scan_data = {"name": scannet_object_name, "content": objects["scan"]}
 
         if "mask" in objects:
@@ -147,27 +166,30 @@ class Scan2Cad(Dataset):
         info = self.transformation(info)
         return info.tdf, info
 
-    def mask_object(self, model, mask):
+    @staticmethod
+    def mask_object(model, mask):
         masked = np.where(mask, model, np.NINF)
 
         return masked
 
-    def _load_mask(self, filepath):
-        mask = utils.load_mask(filepath)
+    @staticmethod
+    def _load_mask(filepath: str) -> Tuple[np.array, np.array]:
+        mask = data.load_mask(filepath)
 
         return mask.tdf, mask
 
-    def _load_df(self, filepath):
+    @staticmethod
+    def _load_df(filepath: str) -> Tuple[np.array, np.array]:
         if os.path.splitext(filepath)[1] == ".mask":
-            sample = utils.load_mask(filepath)
+            sample = data.load_mask(filepath)
             sample.tdf = 1.0 - sample.tdf.astype(np.float32)
         else:
-            sample = utils.load_tdf(filepath)
+            sample = data.load_raw_df(filepath)
         patch = sample.tdf
         return patch, sample
 
     @staticmethod
-    def _load_sdf(filepath):
-        sample = utils.load_sdf(filepath)
+    def _load_sdf(filepath: str) -> Tuple[np.array, np.array]:
+        sample = data.load_sdf(filepath)
         patch = sample.tdf
         return patch, sample

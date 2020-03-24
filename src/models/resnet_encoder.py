@@ -3,7 +3,7 @@ from typing import List
 import torch
 import torch.nn as nn
 
-from resnet_block import ResNetBlock
+from models import ResNetBlock
 
 
 class ResNetEncoder(nn.Module):
@@ -42,7 +42,7 @@ class ResNetEncoder(nn.Module):
             nn.ReLU(),
             nn.BatchNorm3d(self.num_features[3]),
             nn.Conv3d(self.num_features[3], self.num_features[4], kernel_size=4, stride=2, padding=1, bias=False),
-            ResNetBlock(self.num_features[3]),
+            ResNetBlock(self.num_features[4]),
 
             # 2 x 2 x 2
             nn.ReLU(),

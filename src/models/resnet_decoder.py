@@ -3,7 +3,7 @@ from typing import List
 import torch
 import torch.nn as nn
 
-from resnet_block import ResNetBlock
+from models import ResNetBlock
 
 
 class ResNetDecoder(nn.Module):
@@ -18,38 +18,44 @@ class ResNetDecoder(nn.Module):
 
         self.network = nn.Sequential(
             nn.ReLU(),
-            nn.ConvTranspose3d(self.num_feat[5], self.num_feat[4], kernel_size=2, stride=1, padding=0, bias=False),
+            nn.ConvTranspose3d(self.num_features[5], self.num_features[4], kernel_size=2, stride=1, padding=0,
+                               bias=False),
 
             # 4 x 4 x 4
-            # ResNetBlock(self.num_feat[4]),
-            ResNetBlock(self.num_feat[4]),
-            nn.ConvTranspose3d(self.num_feat[4], self.num_feat[3], kernel_size=4, stride=2, padding=1, bias=False),
+            # ResNetBlock(self.num_features[4]),
+            ResNetBlock(self.num_features[4]),
+            nn.ConvTranspose3d(self.num_features[4], self.num_features[3], kernel_size=4, stride=2, padding=1,
+                               bias=False),
             nn.ReLU(),
-            nn.BatchNorm3d(self.num_feat[3]),
+            nn.BatchNorm3d(self.num_features[3]),
 
             # 8 x 8 x 8
-            # ResNetBlock(self.num_feat[3]),
-            ResNetBlock(self.num_feat[3]),
-            nn.ConvTranspose3d(self.num_feat[3], self.num_feat[2], kernel_size=4, stride=2, padding=1, bias=False),
+            # ResNetBlock(self.num_features[3]),
+            ResNetBlock(self.num_features[3]),
+            nn.ConvTranspose3d(self.num_features[3], self.num_features[2], kernel_size=4, stride=2, padding=1,
+                               bias=False),
             nn.ReLU(),
-            nn.BatchNorm3d(self.num_feat[2]),
+            nn.BatchNorm3d(self.num_features[2]),
 
             # 16 x 16 x 16
-            # ResNetBlock(self.num_feat[2]),
-            ResNetBlock(self.num_feat[2]),
-            nn.ConvTranspose3d(self.num_feat[2], self.num_feat[1], kernel_size=4, stride=2, padding=1, bias=False),
+            # ResNetBlock(self.num_features[2]),
+            ResNetBlock(self.num_features[2]),
+            nn.ConvTranspose3d(self.num_features[2], self.num_features[1], kernel_size=4, stride=2, padding=1,
+                               bias=False),
             nn.ReLU(),
-            nn.BatchNorm3d(self.num_feat[1]),
+            nn.BatchNorm3d(self.num_features[1]),
 
             # 32 x 32 x 32
-            # ResNetBlock(self.num_feat[1]),
-            ResNetBlock(self.num_feat[1]),
-            nn.ConvTranspose3d(self.num_feat[1], self.num_feat[1], kernel_size=4, stride=2, padding=1, bias=False),
+            # ResNetBlock(self.num_features[1]),
+            ResNetBlock(self.num_features[1]),
+            nn.ConvTranspose3d(self.num_features[1], self.num_features[1], kernel_size=4, stride=2, padding=1,
+                               bias=False),
 
             # 32 x 32 x 32
             nn.ReLU(),
-            nn.BatchNorm3d(self.num_feat[1]),
-            nn.ConvTranspose3d(self.num_feat[1], self.num_feat[0], kernel_size=7, stride=1, padding=3, bias=False),
+            nn.BatchNorm3d(self.num_features[1]),
+            nn.ConvTranspose3d(self.num_features[1], self.num_features[0], kernel_size=7, stride=1, padding=3,
+                               bias=False),
         )
 
         self.init_weights()

@@ -1,5 +1,8 @@
 import argparse
+import json
+import os
 from collections import defaultdict
+from datetime import datetime
 
 import torch
 import torch.nn as nn
@@ -7,8 +10,8 @@ import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 
+import data
 import utils
-from datasets.scan2cad import Scan2Cad
 from models import *
 
 
@@ -16,13 +19,13 @@ def forward(scan, cad, negative, separation_model, completion_model, triplet_mod
             criterion_separation, criterion_completion, criterion_triplet, device):
     # Prepare scan sample
     scan_model, scan_mask, scan_name = scan["content"], scan["mask"], scan["name"]
-    scan_bg_mask = torch.where(scan_mask == 0, scan_model, torch.zeors(scan_mask.shape))
+    scan_bg_mask = torch.where(scan_mask == 0, scan_model, torch.zeros(scan_mask.shape))
     scan_model = scan_model.to(device, non_blocking=True)
     scan_fg_mask = scan_mask.to(device, non_blocking=True)
     scan_bg_mask = scan_bg_mask.to(device, non_blocking=True)
 
     # Prepare CAD sample
-    cad_model = cad["model"]
+    cad_model = cad["content"]
     cad_model = cad_model.to(device, non_blocking=True)
 
     # Prepare negative sample
@@ -52,19 +55,28 @@ def forward(scan, cad, negative, separation_model, completion_model, triplet_mod
 def main(opt: argparse.Namespace) -> None:
     utils.set_gpu(opt.gpu)
     device = torch.device("cuda")
+    run_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    run_path = os.path.join(opt.output_root, run_name)
+    print(f"Start training {run_path}")
+    print(vars(opt))
+
+    # Save config
+    os.makedirs(run_path, exist_ok=True)
+    with open(os.path.join(run_path, "config.json"), "w") as f:
+        json.dump(vars(opt), f, indent=4)
 
     # Data
-    train_dataset: Dataset = Scan2Cad(opt.scan2cad_file, opt.scannet_path, opt.shapenet_path, "train", ["train"],
-                                      rotation=opt.rotation_augmentation, flip=opt.flip_augmentation,
-                                      jitter=opt.jitter_augmentation, transformation=utils.to_occupancy_grid,
-                                      scan_rep="sdf", load_mask=True, add_negatives=True)
+    train_dataset: Dataset = data.Scan2Cad(opt.scan2cad_file, opt.scannet_path, opt.shapenet_path, "train", ["train"],
+                                           rotation=opt.rotation_augmentation, flip=opt.flip_augmentation,
+                                           jitter=opt.jitter_augmentation, transformation=data.to_occupancy_grid,
+                                           scan_rep="sdf", load_mask=True, add_negatives=True)
     train_dataloader: DataLoader = DataLoader(train_dataset, shuffle=True, batch_size=opt.batch_size,
                                               num_workers=opt.num_workers, pin_memory=True)
 
-    val_dataset: Dataset = Scan2Cad(opt.scan2cad_file, opt.scannet_path, opt.shapenet_path, "validation",
-                                    ["validation"], rotation=opt.rotation_augmentation, flip=opt.flip_augmentation,
-                                    jitter=opt.jitter_augmentation, transformation=utils.to_occupancy_grid,
-                                    scan_rep="sdf", load_mask=True, add_negatives=True)
+    val_dataset: Dataset = data.Scan2Cad(opt.scan2cad_file, opt.scannet_path, opt.shapenet_path, "validation",
+                                         ["validation"], rotation=opt.rotation_augmentation, flip=opt.flip_augmentation,
+                                         jitter=opt.jitter_augmentation, transformation=data.to_occupancy_grid,
+                                         scan_rep="sdf", load_mask=True, add_negatives=True)
     val_dataloader: DataLoader = DataLoader(val_dataset, shuffle=False, batch_size=opt.batch_size,
                                             num_workers=opt.num_workers, pin_memory=True)
 
@@ -117,8 +129,9 @@ def main(opt: argparse.Namespace) -> None:
 
             # Log to console
             if iteration_number % opt.log_frequency == opt.log_frequency - 1:
-                print(f"E{epoch:04d}, I{iteration_number:05d}\tTotal: {loss_total} \tFG: {loss_foreground} "
-                      f"\tBG: {loss_background} \tCompletion{loss_completion} \tTriplet{loss_triplet}")
+                print(f"[E{epoch:04d}, I{iteration_number:05d}]\tTotal: {loss_total: 05.3f}",
+                      f"\tFG: {loss_foreground: 05.3f}\tBG: {loss_background: 05.3f}",
+                      f"\tCompletion: {loss_completion: 05.3f} \tTriplet: {loss_triplet: 05.3f}")
 
             # Validate
             if iteration_number % opt.validate_frequency == opt.validate_frequency - 1:
@@ -145,9 +158,23 @@ def main(opt: argparse.Namespace) -> None:
 
                     # Aggregate losses
                     val_losses_summary = {k: torch.mean(torch.tensor(v)) for k, v in val_losses}
-                    print(f"-Val E{epoch:04d}, I{iteration_number:05d}\tTotal: {val_losses_summary['Total']}",
-                          f"tFG: {val_losses_summary['FG']} \tBG: {val_losses_summary['BG']}",
-                          "\tCompletion{val_losses_summary['Completion']} \tTriplet{val_losses_summary['Triplet']}")
+                    print(f"-Val [E{epoch:04d}, I{iteration_number:05d}]\tTotal: {val_losses_summary['Total']:05.3f}",
+                          f"tFG: {val_losses_summary['FG']:05.3f} \tBG: {val_losses_summary['BG']:05.3f}",
+                          f"\tCompletion:{val_losses_summary['Completion']:05.3f}",
+                          f"\tTriplet:{val_losses_summary['Triplet']:05.3f}")
+
+            # Save checkpoint
+            if iteration_number % opt.checkpoint_frequency == opt.checkpoint_frequency - 1:
+                checkpoint_name = f"{run_name}_{iteration_number:05d}"
+
+                torch.save(separation_model.state_dict(),
+                           os.path.join(run_path, f"{checkpoint_name}_separation.pt"))
+                torch.save(completion_model.state_dict(),
+                           os.path.join(run_path, f"{checkpoint_name}_completion.pt"))
+                torch.save(triplet_model.state_dict(), os.path.join(run_path, f"{checkpoint_name}_triplet.pt"))
+                print(f"Saved model at {checkpoint_name}")
+
+            iteration_number += 1
 
 
 if __name__ == '__main__':
@@ -157,12 +184,17 @@ if __name__ == '__main__':
     parser.add_argument("--num_epochs", type=int, default=5000)
     parser.add_argument("--learning_rate", type=float, default=1e-3)
     parser.add_argument("--weight_decay", type=float, default=5e-4)
-    parser.add_argument("--scannet_root_path", type=str)
-    parser.add_argument("--shapenet_root_path", type=str)
+    parser.add_argument("--scannet_path", type=str)
+    parser.add_argument("--shapenet_path", type=str)
+    parser.add_argument("--scan2cad_file", type=str)
     parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--triplet_margin", type=float, default=1e-2)
     parser.add_argument("--rotation_augmentation", type=str, default="fixed", help="fixed, interpolation, none")
     parser.add_argument("--flip_augmentation", type=bool, default=False)
     parser.add_argument("--jitter_augmentation", type=bool, default=False)
+    parser.add_argument("--log_frequency", type=int, default=10)
+    parser.add_argument("--validate_frequency", type=int, default=500)
+    parser.add_argument("--checkpoint_frequency", type=int, default=1000)
+    parser.add_argument("--output_root", type=str)
     args = parser.parse_args()
     main(args)

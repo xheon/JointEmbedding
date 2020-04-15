@@ -34,17 +34,17 @@ def forward(scan, cad, negative, separation_model, completion_model, triplet_mod
 
     # Pass data through networks
     # 1) Separate foreground and background
-    foreground, background = separation_model(scan_model)
+    foreground, background = separation_model(torch.sigmoid(scan_model))
     loss_foreground = torch.mean(criterion_separation(foreground, scan_fg_mask), dim=[1, 2, 3, 4]).mean()
     loss_background = torch.mean(criterion_separation(background, scan_bg_mask), dim=[1, 2, 3, 4]).mean()
 
     # 2) Complete foreground w.r.t. CAD model
-    completed = completion_model(foreground)
+    completed = completion_model(torch.sigmoid(foreground))
     loss_completion = torch.mean(criterion_completion(completed, cad_model), dim=[1, 2, 3, 4]).mean()
 
     # 3) Embed completed output as a triplet
     # anchor: completed output, positive: CAD model, negative: random CAD sample
-    anchor, positive, negative = triplet_model(completed, cad_model, negative_model)
+    anchor, positive, negative = triplet_model(torch.sigmoid(completed), cad_model, negative_model)
     a, p, n = anchor.view(anchor.shape[0], -1), positive.view(anchor.shape[0], -1), negative.view(
         anchor.shape[0], -1)
     loss_triplet = criterion_triplet(a, p, n).mean()

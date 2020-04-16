@@ -16,3 +16,6 @@ class TripletNet(nn.Module):
         negative = self.network(negative)
 
         return anchor, positive, negative
+
+    def embed(self, data: torch.Tensor) -> torch.Tensor:
+        return self.network(data)

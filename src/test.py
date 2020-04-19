@@ -155,6 +155,16 @@ def evaluate_similarity_metrics(separation: nn.Module, completion: nn.Module, tr
         retrieved_correct = 0
         retrieved_total = 0
 
+        ranked_correct = 0
+        ranked_total = 0
+
+        selected_categories = ["02747177", "02808440", "02818832", "02871439", "02933112", "03001627", "03211117", "03337140", "04256520", "04379243", "other"]
+        per_category_retrieved_correct = {category: 0 for category in selected_categories}
+        per_category_retrieved_total = {category: 0 for category in selected_categories}
+
+        per_category_ranked_correct = {category: 0 for category in selected_categories}
+        per_category_ranked_total = {category: 0 for category in selected_categories}
+
         # Iterate over all annotations
         for sample in tqdm(samples, total=len(samples)):
             reference_name = sample["reference"]["name"].replace("/scan/", "")
@@ -175,13 +185,35 @@ def evaluate_similarity_metrics(separation: nn.Module, completion: nn.Module, tr
             ground_truth_names = [r["name"].replace("/cad/", "") for r in sample["ranked"]]
 
             # retrieval accuracy
-            retrieved_correct += 1 if metrics.is_correctly_retrieved(predicted_ranking, ground_truth_names) else 0
+            sample_retrieved_correct = 1 if metrics.is_correctly_retrieved(predicted_ranking, ground_truth_names) else 0
+            retrieved_correct += sample_retrieved_correct
             retrieved_total += 1
-            accuracy = retrieved_correct / retrieved_total
+
+            # per-category retrieval accuracy
+            reference_category = metrics.get_category_from_list(metrics.get_category(reference_name), selected_categories)
+            per_category_retrieved_correct[reference_category] += sample_retrieved_correct
+            per_category_retrieved_total[reference_category] += 1
+
+            # ranking quality
+            sample_ranked_correct = metrics.count_correctly_ranked_predictions(predicted_ranking, ground_truth_names)
+            ranked_correct += sample_ranked_correct
+            ranked_total += len(ground_truth_names)
+
+            per_category_ranked_correct[reference_category] += sample_ranked_correct
+            per_category_ranked_total[reference_category] += len(ground_truth_names)
+
         print(f"correct: {retrieved_correct}, total: {retrieved_total}, accuracy: {retrieved_correct/retrieved_total}")
 
+        for (category, correct), total in zip(per_category_retrieved_correct.items(), per_category_retrieved_total.values()):
+            print(f"{category}: {correct:>5d}/{total:>5d} --> {correct/total:4.3f}")
 
-    return accuracy
+        print(f"correct: {ranked_correct}, total: {ranked_total}, accuracy: {ranked_correct/ranked_total}")
+
+        for (category, correct), total in zip(per_category_ranked_correct.items(), per_category_ranked_total.values()):
+            print(f"{category}: {correct:>5d}/{total:>5d} --> {correct/total:4.3f}")
+
+    return None
+
 
 def get_unique_samples(dataset_path: str) -> Tuple[List[str], List[str]]:
     unique_scans = set()

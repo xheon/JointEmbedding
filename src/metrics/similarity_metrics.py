@@ -16,7 +16,7 @@ def is_correctly_ranked(prediction: str, rank, ground_truth: List[str]) -> bool:
     return False
 
 
-def count_correctly_ranked_predictions(predictions: List[str], ground_truth: List[str]) -> Tuple[int, int]:
+def count_correctly_ranked_predictions(predictions: List[str], ground_truth: List[str]) -> int:
     num_ranked_models = len(ground_truth)  # 3 or less
     top_n_predicted = predictions[:num_ranked_models]
 
@@ -27,4 +27,15 @@ def count_correctly_ranked_predictions(predictions: List[str], ground_truth: Lis
         if is_correctly_ranked(prediction, rank, ground_truth):
             correctly_ranked += 1
 
-    return correctly_ranked, total
+    return correctly_ranked
+
+
+def get_category(name: str) -> str:
+    return name.split("_")[-2]
+
+
+def get_category_from_list(category: str, selected_categories: List[str], others_name: str = "other") -> str:
+    if category not in selected_categories:
+        return others_name
+    else:
+        return category

@@ -19,10 +19,19 @@ To build a ranked list of similar CAD models, we developed an annotation interfa
 
 If you would like to get access to the Scan-CAD Object Similarity dataset, please fill out this [google form](https://forms.gle/3BhUaU1JaECWrbTw6 "google form to get access"), and once accepted, we will send out the download link.
 
+## Code
+This code was developed with `Python 3.7` and `PyTorch 1.3`.
+
+### Training & Testing
+- `src/train.py` contains the main train loop.
+- `src/test.py` contains the code for evaluating the metrics, i.e. domain confusion, retrieval accuracy and ranking quality.
+
+
 ## Video
 You can view our YouTube video [here](https://www.youtube.com/watch?v=-RxSlQ6tOEA).
 
 [![Our YouTube Video](https://img.youtube.com/vi/-RxSlQ6tOEA/0.jpg)](https://www.youtube.com/watch?v=-RxSlQ6tOEA)
+
 
 
 ## Citation

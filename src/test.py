@@ -83,7 +83,7 @@ def evaluate_confusion(separation: nn.Module, completion: nn.Module, triplet: nn
 
         with torch.no_grad():
             # Pass scan through networks
-            scan_foreground, _ = separation(scan_data)
+            scan_foreground, _ = separation(torch.sigmoid(scan_data))
             scan_completed = completion(torch.sigmoid(scan_foreground))
             scan_latent = triplet.embed(torch.sigmoid(scan_completed)).view(batch_size, -1)
             embeddings.append(scan_latent)
@@ -125,7 +125,7 @@ def evaluate_similarity_metrics(separation: nn.Module, completion: nn.Module, tr
         # Move data to GPU
         element = element.to(device)
         with torch.no_grad():
-            scan_foreground, _ = separation(element)
+            scan_foreground, _ = separation(torch.sigmoid(element))
             scan_completed = completion(torch.sigmoid(scan_foreground))
             scan_latent = triplet.embed(torch.sigmoid(scan_completed)).view(-1)
 

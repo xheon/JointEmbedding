@@ -125,7 +125,7 @@ def evaluate_similarity_metrics(separation: nn.Module, completion: nn.Module, tr
         # Move data to GPU
         element = element.to(device)
         with torch.no_grad():
-            scan_foreground, _ = separation(element)
+            scan_foreground, _ = separation(torch.sigmoid(element))
             scan_completed = completion(torch.sigmoid(scan_foreground))
             scan_latent = triplet.embed(torch.sigmoid(scan_completed)).view(-1)
 
